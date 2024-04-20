@@ -8,6 +8,7 @@ This code is based on <https://www.markusweimar.de/en/humidity-calculator/>.
 """
 
 import math
+import sys
 
 class Temperature:
 
@@ -45,3 +46,11 @@ def adjust_relative_humidity(old: Temperature, relative_humidity,
     # water2 = answer / 100 * max_water(new)
     # and assume water1 = water2, so...
     return water1 / max_water(new) * 100
+
+
+if __name__ == '__main__':
+   old = float(sys.argv[1])
+   relative_humidity = float(sys.argv[2])
+   new = float(sys.argv[3])
+   adjusted = adjust_relative_humidity(celsius(old), relative_humidity, celsius(new))
+   print(f'{adjusted:.1f}')

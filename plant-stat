@@ -1,5 +1,7 @@
 #!/bin/sh
 
+bin=$(dirname "$(realpath "$0")")
+
 lan_ips_with_port_9999_open() {
   # -p9999: port 9999
   # -oG -: "greppable" output to standard output
@@ -15,13 +17,32 @@ mkfifo "$workdir/pipe"
 
 # on/off state of power relays ("smart plugs")
 lan_ips_with_port_9999_open | while read -r ip; do
-  ./tplink_smartplug.py --command info --target "$ip" --quiet | \
+  "$bin"/tplink_smartplug.py --command info --target "$ip" --quiet | \
     # -c: "compact" output
     jq -c '.system.get_sysinfo | {alias: .alias, relay_state: .relay_state}' &
 done >"$workdir/pipe" &
 
 # temperature and humidity
->"$workdir/pipe" ssh -T asus -- sudo /home/david/src/temper/temper.py --force 413d:2107 &
+# e.g.
+#     Bus 003 Dev 003 413d:2107 TEMPerX_V3.3 26.42C 79.56F 45% - - -
+ssh -T asus -- sudo /home/david/src/temper/temper.py --force 413d:2107 | \
+  awk '{print $7, $8, $9}' | \
+  while read -r celsius fahrenheit humidity; do
+    # set -x
+    # >&2 printf 'got: celsius:%s fahrenheit:%s humidity:%s\n' "$celsius" "$fahrenheit" "$humidity"
+    celsius=${celsius%C}
+    fahrenheit=${fahrenheit%F}
+    humidity=${humidity%\%}
+    calibration_c=-3.47
+    calibration_f=-6.25
+    # >&2 printf '%s + %s\n' "$celsius" "$calibration_c"
+    # >&2 printf '%s + %s\n' "$fahrenheit" "$calibration_f"
+    adjusted_c=$(printf '%s + %s\n' "$celsius" "$calibration_c" | bc)
+    adjusted_f=$(printf '%s + %s\n' "$fahrenheit" "$calibration_f" | bc)
+    adjusted_humidity=$(python "$bin"/adjust_relative_humidity.py "$celsius" "$humidity" "$adjusted_c")
+    printf '%s°C %s°F %s%%\n' "$adjusted_c" "$adjusted_f" "$adjusted_humidity"
+  done >"$workdir/pipe" &
+
 
 cat "$workdir/pipe"
 rm -r "$workdir"
