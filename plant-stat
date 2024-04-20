@@ -1,0 +1,27 @@
+#!/bin/sh
+
+lan_ips_with_port_9999_open() {
+  # -p9999: port 9999
+  # -oG -: "greppable" output to standard output
+  # 192.168.1.0/24: the subset of 256 addresses 192.168.1.X
+  # sed: show just the IP, but only if "Ports: 9999/open/" ...
+  nmap -p9999 -oG - 192.168.1.0/24 | sed -n 's,^Host:\s\+\([0-9.]\+\)\s\+([^)]*)\s\+Ports:\s\+9999/open/.*,\1,p'
+}
+
+# Subshell everything and have them write to a named pipe, which we then `cat`
+# at the bottom of this script.
+workdir=$(mktemp -d)
+mkfifo "$workdir/pipe"
+
+# on/off state of power relays ("smart plugs")
+lan_ips_with_port_9999_open | while read -r ip; do
+  ./tplink_smartplug.py --command info --target "$ip" --quiet | \
+    # -c: "compact" output
+    jq -c '.system.get_sysinfo | {alias: .alias, relay_state: .relay_state}' &
+done >"$workdir/pipe" &
+
+# temperature and humidity
+>"$workdir/pipe" ssh -T asus -- sudo /home/david/src/temper/temper.py --force 413d:2107 &
+
+cat "$workdir/pipe"
+rm -r "$workdir"
