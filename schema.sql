@@ -10,6 +10,7 @@ create table calibration(
 insert into calibration(when_iso, temperature_correction_celsius) values('2024-04-20T12:00:00.000Z', -3.47);
 
 create table reading_raw(
+  id integer primary key not null,
   when_iso text not null,
   temperature_celsius real not null,
   humidity_percent real not null,
