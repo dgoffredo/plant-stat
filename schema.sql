@@ -23,6 +23,7 @@ create view reading(
   when_iso,
   temperature_celsius,
   humidity_percent,
+  dupe_count,
   last_iso
 ) as
   select raw.when_iso as when_iso,
@@ -34,6 +35,7 @@ create view reading(
        (6.112 * exp(17.62 * raw.temperature_celsius / (243.12 + raw.temperature_celsius)))) /
      (6.112 * exp(17.62 * (raw.temperature_celsius + calib.temperature_correction_celsius) / (243.12 + raw.temperature_celsius + calib.temperature_correction_celsius))) *
      100.0, 2) as humidity_percent,
+    raw.dupe_count as dupe_count,
     raw.last_iso as last_iso
   from reading_raw raw inner join calibration calib
     on calib.when_iso = (
