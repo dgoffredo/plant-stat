@@ -3,11 +3,12 @@
 --
 --     strftime('%Y-%m-%dT%H:%M:%fZ')
 
-create table if not exists calibration(
+drop table if exists calibration;
+create table calibration(
   when_iso text not null primary key,
   temperature_correction_celsius real not null);
 
-insert or ignore into calibration(
+insert into calibration(
   when_iso, temperature_correction_celsius)
 values
   ('2024-04-20T12:00:00.000Z', -3.47);
@@ -65,3 +66,4 @@ create table if not exists relay_state(
   reading_id integer not null,
 
   foreign key (reading_id) references reading_raw(id));
+
