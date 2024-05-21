@@ -3,13 +3,16 @@
 --
 --     strftime('%Y-%m-%dT%H:%M:%fZ')
 
-create table calibration(
-  when_iso text not null,
+create table if not exists calibration(
+  when_iso text not null primary key,
   temperature_correction_celsius real not null);
 
-insert into calibration(when_iso, temperature_correction_celsius) values('2024-04-20T12:00:00.000Z', -3.47);
+insert or ignore into calibration(
+  when_iso, temperature_correction_celsius)
+values
+  ('2024-04-20T12:00:00.000Z', -3.47);
 
-create table reading_raw(
+create table if not exists reading_raw(
   id integer primary key not null,
   when_iso text not null,
   temperature_celsius real not null,
@@ -17,15 +20,18 @@ create table reading_raw(
   dupe_count integer not null default 0,
   last_iso text null);
 
-create index reading_raw_by_when_iso on reading_raw(when_iso);
+create index if not exists reading_raw_by_when_iso on reading_raw(when_iso);
 
+drop view if exists reading;
 create view reading(
+  id,
   when_iso,
   temperature_celsius,
   humidity_percent,
   last_iso
 ) as
-  select raw.when_iso as when_iso,
+  select raw.id as id,
+    raw.when_iso as when_iso,
     round(raw.temperature_celsius + calib.temperature_correction_celsius, 2) as temperature_celsius,
     -- Let there be math!
     -- This formula is based on the source of
@@ -43,13 +49,17 @@ create view reading(
       order by when_iso desc
       limit 1);
 
--- TODO: dummy values
--- insert into reading_raw values('2020-01-01T10:10:10.000Z', 20, 50, 0, 0);
--- insert into reading_raw values(strftime('%Y-%m-%dT%H:%M:%fZ'), 30, 50, 0, 0);
--- insert into reading_raw values(strftime('%Y-%m-%dT%H:%M:%fZ'), 30, 50, 0, 0);
-
-create table error(
+create table if not exists error(
   when_iso text not null,
   status integer not null,
   stdout text not null,
   stderr text not null);
+
+create table if not exists relay_state(
+  when_iso text not null,
+  host text not null,
+  alias text not null,
+  state integer not null, -- 0=off, 1=on
+  reading_id integer not null,
+
+  foreign key (reading_id) references reading_raw(id));
