@@ -21,115 +21,98 @@
 
 import argparse
 import socket
-from struct import pack
+import sys
 
 version = 0.4
 
-# Check if hostname is valid
-def validHostname(hostname):
-    try:
-        socket.gethostbyname(hostname)
-    except socket.error:
-        parser.error("Invalid hostname.")
-    return hostname
-
-# Check if port is valid
-def validPort(port):
-    try:
-        port = int(port)
-    except ValueError:
-        parser.error("Invalid port number.")
-
-    if ((port <= 1024) or (port > 65535)):
-        parser.error("Invalid port number.")
-
-    return port
-
-
 # Predefined Smart Plug Commands
 # For a full list of commands, consult tplink_commands.txt
-commands = {'info'     : '{"system":{"get_sysinfo":{}}}',
-            'on'       : '{"system":{"set_relay_state":{"state":1}}}',
-            'off'      : '{"system":{"set_relay_state":{"state":0}}}',
-            'ledoff'   : '{"system":{"set_led_off":{"off":1}}}',
-            'ledon'    : '{"system":{"set_led_off":{"off":0}}}',
-            'cloudinfo': '{"cnCloud":{"get_info":{}}}',
-            'wlanscan' : '{"netif":{"get_scaninfo":{"refresh":0}}}',
-            'time'     : '{"time":{"get_time":{}}}',
-            'schedule' : '{"schedule":{"get_rules":{}}}',
-            'countdown': '{"count_down":{"get_rules":{}}}',
-            'antitheft': '{"anti_theft":{"get_rules":{}}}',
-            'reboot'   : '{"system":{"reboot":{"delay":1}}}',
-            'reset'    : '{"system":{"reset":{"delay":1}}}',
-            'energy'   : '{"emeter":{"get_realtime":{}}}'
+commands = {
+    'info': '{"system":{"get_sysinfo":{}}}',
+    'on': '{"system":{"set_relay_state":{"state":1}}}',
+    'off': '{"system":{"set_relay_state":{"state":0}}}',
+    'ledoff': '{"system":{"set_led_off":{"off":1}}}',
+    'ledon': '{"system":{"set_led_off":{"off":0}}}',
+    'cloudinfo': '{"cnCloud":{"get_info":{}}}',
+    'wlanscan': '{"netif":{"get_scaninfo":{"refresh":0}}}',
+    'time': '{"time":{"get_time":{}}}',
+    'schedule': '{"schedule":{"get_rules":{}}}',
+    'countdown': '{"count_down":{"get_rules":{}}}',
+    'antitheft': '{"anti_theft":{"get_rules":{}}}',
+    'reboot': '{"system":{"reboot":{"delay":1}}}',
+    'reset': '{"system":{"reset":{"delay":1}}}',
+    'energy': '{"emeter":{"get_realtime":{}}}'
 }
 
 # Encryption and Decryption of TP-Link Smart Home Protocol
 # XOR Autokey Cipher with starting key = 171
 
-def encrypt(string):
+
+def encrypt(string: str) -> bytearray:
     key = 171
-    result = pack(">I", len(string))
-    for i in string:
-        a = key ^ ord(i)
+    result = bytearray()
+    # Messages and length prefixed.
+    result.extend(len(string).to_bytes(4, 'big'))
+    for i in string.encode('utf-8'):
+        a = key ^ i
         key = a
-        result += bytes([a])
+        result.append(a)
     return result
 
-def decrypt(string):
+
+def decrypt(data: bytes) -> str:
     key = 171
-    result = ""
-    for i in string:
+    result = bytearray()
+    # The message is length prefixed.  Skip that first four bytes, which
+    # contains the message length.
+    for i in data[4:]:
         a = key ^ i
         key = i
-        result += chr(a)
-    return result
+        result.append(a)
+    return result.decode('utf-8')
 
 
-# Parse commandline arguments
-parser = argparse.ArgumentParser(description=f"TP-Link Wi-Fi Smart Plug Client v{version}")
-parser.add_argument("-t", "--target", metavar="<hostname>", required=True,
-                    help="Target hostname or IP address", type=validHostname)
-parser.add_argument("-p", "--port", metavar="<port>", default=9999,
-                    required=False, help="Target port", type=validPort)
-parser.add_argument("-q", "--quiet", dest="quiet", action="store_true",
-                    help="Only show result")
-parser.add_argument("--timeout", default=10, required=False,
-                    help="Timeout to establish connection")
-group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("-c", "--command", metavar="<command>",
-                   help="Preset command to send. Choices are: "+", ".join(commands), choices=commands)
-group.add_argument("-j", "--json", metavar="<JSON string>",
-                   help="Full JSON string of command to send")
-args = parser.parse_args()
+def interact(host: str, port: int, message_json: str) -> str:
+    sock = socket.socket()
+    sock.connect((host, port))
+    sock.send(encrypt(message_json))
+    data = sock.recv(2048)
+    sock.close()
+    return decrypt(data)
 
 
-# Set target IP, port and command to send
-ip = args.target
-port = args.port
-if args.command is None:
-    cmd = args.json
-else:
-    cmd = commands[args.command]
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description=f"TP-Link Wi-Fi Smart Plug Client v{version}")
+    parser.add_argument("-t",
+                        "--target",
+                        metavar="<hostname>",
+                        required=True,
+                        help="Target hostname or IP address")
+    parser.add_argument("-p",
+                        "--port",
+                        metavar="<port>",
+                        default=9999,
+                        required=False,
+                        help="Target port")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-c",
+                       "--command",
+                       metavar="<command>",
+                       help="Preset command to send. Choices are: " +
+                       ", ".join(commands),
+                       choices=commands)
+    group.add_argument("-j",
+                       "--json",
+                       metavar="<JSON string>",
+                       help="Full JSON string of command to send")
+    args = parser.parse_args()
 
-
-# Send command and receive reply
-try:
-    sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock_tcp.settimeout(int(args.timeout))
-    sock_tcp.connect((ip, port))
-    sock_tcp.settimeout(None)
-    sock_tcp.send(encrypt(cmd))
-    data = sock_tcp.recv(2048)
-    sock_tcp.close()
-
-    decrypted = decrypt(data[4:])
-
-    if args.quiet:
-        print(decrypted)
+    ip = args.target
+    port = args.port
+    if args.command is None:
+        cmd = args.json
     else:
-        print("Sent:     ", cmd)
-        print("Received: ", decrypted)
+        cmd = commands[args.command]
 
-except socket.error:
-    quit(f"Could not connect to host {ip}:{port}")
+    print(interact(ip, port, cmd))
