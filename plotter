@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# This script is meant to be used with [FSGI][1].  It's a request handler for
+# an HTTP server that produces SVG images of temperature/humidity measurements
+# over a specified interval.
+#
+# [1]: https://github.com/dgoffredo/fsgi
+
+src_dir="$(dirname "$0")"
+
+DATABASE="$src_dir/db.sqlite"
+export DATABASE
+
+FIRST=0001-01-01
+export FIRST
+if [ -e request/query/first/0 ]; then
+  # escape single quotes for SQL
+  FIRST=$(<request/query/first/0 tr "'" "''")
+fi
+
+LAST=9999-12-31
+export LAST
+if [ -e request/query/last/0 ]; then
+  # escape single quotes for SQL
+  LAST=$(<request/query/last/0 tr "'" "''")
+fi
+
+url_path="$(cat request/path)"
+
+case "$url_path" in
+/data.svg) exec "$src_dir/plotters/data" ;;
+/temperature-histogram.svg) exec "$src_dir/plotters/temperature-histogram" ;;
+/humidity-histogram.svg) exec "$src_dir/plotters/humidity-histogram" ;;
+*)
+  >response/status printf '404'
+esac
+

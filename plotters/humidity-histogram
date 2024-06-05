@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# Required environment variables:
+#
+# DATABASE
+#   Path to a sqlite3 database containing the measurement data.
+#
+# FIRST
+#   ISO 8601 date of the first day of data to fetch.
+#
+# LAST
+#   ISO 8601 date of the last day of data to fetch.
+
+/usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
+.headers off
+.mode columns
+.output dump.txt
+
+with frequencies as (
+  select humidity_percent, sum(dupe_count + 1) as frequency
+  from reading
+  where date(when_iso) between '$FIRST' and '$LAST'
+  group by humidity_percent
+)
+select round(humidity_percent), sum(frequency)
+from frequencies
+group by round(humidity_percent)
+order by round(humidity_percent);
+END_SQL
+
+printf 'image/svg+xml' >response/headers/Content-Type
+
+>response/body gnuplot <<'END_GNUPLOT'
+set xlabel 'Relative Humidity (%)'
+set ylabel 'Frequency'
+
+set boxwidth 0.9 relative
+set style fill solid 1.0
+
+set title 'Humidity Histogram'
+
+set terminal svg size 1024,769 fixed enhanced font 'Arial,12' butt dashlength 1.0
+
+plot 'dump.txt' using 1:2 notitle with boxes
+END_GNUPLOT
+
