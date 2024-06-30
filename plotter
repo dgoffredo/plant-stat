@@ -25,12 +25,23 @@ if [ -e request/query/last/0 ]; then
   LAST=$(<request/query/last/0 tr "'" "''")
 fi
 
-url_path="$(cat request/path)"
+# Support "today" as a date.
+today=$(date --iso --utc)
+if [ "$FIRST" = 'today' ]; then
+  FIRST="$today"
+fi
+if [ "$LAST" = 'today' ]; then
+  LAST="$today"
+fi
+
+read -r url_path <request/path
 
 case "$url_path" in
 /data.svg) exec "$src_dir/plotters/data" ;;
+/today.svg) exec "$src_dir/plotters/today" ;;
 /temperature-histogram.svg) exec "$src_dir/plotters/temperature-histogram" ;;
 /humidity-histogram.svg) exec "$src_dir/plotters/humidity-histogram" ;;
+/co2.svg) exec "$src_dir/plotters/co2" ;;
 *)
   >response/status printf '404'
 esac

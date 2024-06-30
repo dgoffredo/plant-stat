@@ -1,0 +1,44 @@
+#!/bin/sh
+
+# Required environment variables:
+#
+# DATABASE
+#   Path to a sqlite3 database containing the measurement data.
+#
+# FIRST
+#   ISO 8601 date of the first day of data to fetch.
+#
+# LAST
+#   ISO 8601 date of the last day of data to fetch.
+
+/usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
+.headers off
+.mode columns
+.output dump.txt
+select when_iso, co2_ppm
+from co2_raw
+where date(when_iso) between '$FIRST' and '$LAST'
+order by when_iso;
+END_SQL
+
+printf 'image/svg+xml' >response/headers/Content-Type
+
+>response/body gnuplot <<'END_GNUPLOT'
+set xdata time
+set timefmt '%Y-%m-%dT%H:%M:%SZ'
+
+set xlabel 'Time (UTC)' offset 0,-1
+set ylabel 'CO₂ Concentration (ppm)'
+
+set title 'CO₂ Concentration versus Time'
+
+# Give the legend a solid background, and make sure that the border of the
+# graph isn't drawn over it.
+set key center top box opaque
+set border back
+
+set terminal svg size 1024,769 fixed enhanced font 'Arial,12' butt dashlength 1.0
+
+plot 'dump.txt' using 1:2 title 'CO₂ Concentration (ppm)'
+END_GNUPLOT
+

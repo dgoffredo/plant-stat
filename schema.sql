@@ -67,3 +67,14 @@ create table if not exists relay_state(
 
   foreign key (reading_id) references reading_raw(id));
 
+create table if not exists co2_raw(
+  id integer primary key not null,
+  when_iso text not null,
+  sequence_number integer not null,
+  co2_ppm integer not null,
+  temperature_celsius real not null,
+  humidity_percent real not null,
+  dupe_count integer not null default 0,
+  last_iso text null);
+
+
