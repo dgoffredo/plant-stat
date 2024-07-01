@@ -121,7 +121,10 @@ case "$url_path" in
   /humidity-histogram.svg|/humidity-histogram) exec "$src_dir/plotters/humidity-histogram" ;;
   /co2.svg|/co2) exec "$src_dir/plotters/co2" ;;
   /co2-latency-histogram.svg|/co2-latency-histogram) exec "$src_dir/plotters/co2-latency-histogram" ;;
-  *) >response/status printf '404'
+  /co2-histogram.svg|/co2-histogram) exec "$src_dir/plotters/co2-histogram" ;;
+  *)
+    >response/status printf '404'
+    >response/body printf '404 Not Found\n'
 esac
 
 
