@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sqlite3
 import subprocess
+import time
 from typing import Tuple
 import urllib.request
 
@@ -108,8 +109,11 @@ def read_co2(db: sqlite3.Connection):
     host = '192.168.1.101'
     path = '/sensor/latest.json'
     try:
+        before = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
         with urllib.request.urlopen(f'http://{host}{path}', timeout=20) as response:
             data = json.load(response)
+        after = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+        duration_nanoseconds = after - before
     except Exception as error:
         print(error)
         execute(db,
@@ -117,6 +121,7 @@ def read_co2(db: sqlite3.Connection):
             (iso, -1, '', str(error)))
         return
 
+    print('response:', data)
     seq = data['sequence_number']
     ppm = data['CO2_ppm']
     celsius = data['temperature_celsius']
@@ -148,10 +153,18 @@ def read_co2(db: sqlite3.Connection):
                 last_iso = ?
             where id = ?;
             """, ((dupe + 1), iso, id))
+
+            execute(db, """
+            insert into co2_request_duration(
+                co2_raw_id,
+                duration_nanoseconds)
+            values (?, ?);
+            """, (id, duration_nanoseconds))
+
             return
     
     # Create a new row.
-    execute(db, """
+    cursor = execute(db, """
     insert into co2_raw(
         when_iso,
         sequence_number,
@@ -160,6 +173,23 @@ def read_co2(db: sqlite3.Connection):
         humidity_percent)
     values (?, ?, ?, ?, ?);
     """, (iso, seq, ppm, celsius, percent))
+
+    # To reference the inserted co2_raw row in the co2_request_duration table,
+    # we first have to fetch the co2_raw row's id by its (built-in) rowid.
+    row_id = cursor.lastrowid
+    (id,), = execute(db, """
+    select id
+    from co2_raw
+    where rowid = ?;
+    """, (row_id,))
+
+    execute(db, """
+    insert into co2_request_duration(
+        co2_raw_id,
+        duration_nanoseconds)
+    values (?, ?);
+    """, (id, duration_nanoseconds))
+
 
 
     

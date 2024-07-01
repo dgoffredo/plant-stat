@@ -77,4 +77,9 @@ create table if not exists co2_raw(
   dupe_count integer not null default 0,
   last_iso text null);
 
+create table if not exists co2_request_duration(
+  co2_raw_id integer not null,
+  duration_nanoseconds integer not null,
+
+  foreign key (co2_raw_id) references co2_raw(id));
 

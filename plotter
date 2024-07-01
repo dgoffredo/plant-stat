@@ -29,51 +29,65 @@ escape_sql() {
 
 today_iso=$(date --iso --utc)
 
-# case  first  last  days    resulting begin  resulting end
-# ----  -----  ----  ----    ---------------  -------------
-# 1                          beginning        today
-# 2                  z       today – z        today
-# 3     x      y             x                y
-# 4     x                    x                today
-# 5     x            z       x                x + z
-# 6            y             beginning        y
-# 7            y     z       y - z            y
-# 8     x      y     z       x                min(x + z, y)
+# case  all  first  last  days    resulting begin  resulting end
+# ----  ---  -----  ----  ----    ---------------  -------------
+# 1     w                         beginning        today
+# 2*                              today - 1        today
+# 3                       z       today – z        today
+# 4          x      y             x                y
+# 5          x                    x                today
+# 6          x            z       x                x + z
+# 7                 y             beginning        y
+# 8                 y     z       y - z            y
+# 9          x      y     z       x                min(x + z, y)
+#
+# Note: Case 2 is special.  The first URL a client might try is without query parameters,
+# and I'd prefer that didn't generate a huge query over all historical data.
+# So, the default behavior is one day in the past.
 #
 # case 1
-if ! has_param first && ! has_param last && ! has_param days; then
+if has_param all; then
+  if has_param first || has_param last || has_param days; then
+    printf 400 >response/status
+    printf 'The "all" query parameter must appear by itself if at all.\n' >response/body
+    exit
+  fi
   LAST=9999-12-31
   FIRST=0001-01-01
 # case 2
+elif ! has_param first && ! has_param last && ! has_param days; then
+  LAST=$today_iso
+  FIRST=$(TZ=Etc/UTC date --date "$today_iso - 1 days" --iso --utc)
+# case 3
 elif ! has_param first && ! has_param last && has_param days; then
   days=$(get_param days)
   LAST=$today_iso
   FIRST=$(TZ=Etc/UTC date --date "$today_iso - $days days" --iso --utc)
-# case 3
+# case 4
 elif has_param first && has_param last && ! has_param days; then
   LAST=$(get_param last)
   FIRST=$(get_param first)
-# case 4
+# case 5
 elif has_param first && ! has_param last && ! has_param days; then
   LAST=9999-12-31
   FIRST=$(get_param first)
-# case 5
+# case 6
 elif has_param first && ! has_param last && has_param days; then
   first=$(get_param first)
   days=$(get_param days)
   LAST=$(TZ=Etc/UTC date --date "$first + $days days" --iso --utc)
   FIRST=$first
-# case 6
+# case 7
 elif ! has_param first && has_param last && ! has_param days; then
   LAST=$(get_param last)
   FIRST=0001-01-01
-# case 7
+# case 8
 elif ! has_param first && has_param last && has_param days; then
   last=$(get_param last)
   days=$(get_param days)
   LAST=$last
   FIRST=$(TZ=Etc/UTC date --date "$last - $days days" --iso --utc)
-# case 8
+# case 9
 elif has_param first && has_param last && has_param days; then
   last=$(get_param last)
   first=$(get_param first)
@@ -102,10 +116,11 @@ export LAST
 read -r url_path <request/path
 
 case "$url_path" in
-  /data.svg) exec "$src_dir/plotters/data" ;;
-  /temperature-histogram.svg) exec "$src_dir/plotters/temperature-histogram" ;;
-  /humidity-histogram.svg) exec "$src_dir/plotters/humidity-histogram" ;;
-  /co2.svg) exec "$src_dir/plotters/co2" ;;
+  /data.svg|/data) exec "$src_dir/plotters/data" ;;
+  /temperature-histogram.svg|/temperature-histogram) exec "$src_dir/plotters/temperature-histogram" ;;
+  /humidity-histogram.svg|/humidity-histogram) exec "$src_dir/plotters/humidity-histogram" ;;
+  /co2.svg|/co2) exec "$src_dir/plotters/co2" ;;
+  /co2-latency-histogram.svg|/co2-latency-histogram) exec "$src_dir/plotters/co2-latency-histogram" ;;
   *) >response/status printf '404'
 esac
 
