@@ -11,38 +11,102 @@ src_dir="$(dirname "$0")"
 DATABASE="$src_dir/db.sqlite"
 export DATABASE
 
-FIRST=0001-01-01
-export FIRST
-if [ -e request/query/first/0 ]; then
-  # escape single quotes for SQL
-  FIRST=$(<request/query/first/0 tr "'" "''")
-fi
+has_param() {
+  [ -e "request/query/$1/0" ]
+}
 
-LAST=9999-12-31
-export LAST
-if [ -e request/query/last/0 ]; then
-  # escape single quotes for SQL
-  LAST=$(<request/query/last/0 tr "'" "''")
+get_param() {
+  cat "request/query/$1/0"
+}
+
+lesser_string() {
+  printf '%s\n%s\n' "$1" "$2" | sort | head -1
+}
+
+escape_sql() {
+  printf '%s' "$1" | tr "'" "''"
+}
+
+today_iso=$(date --iso --utc)
+
+# case  first  last  days    resulting begin  resulting end
+# ----  -----  ----  ----    ---------------  -------------
+# 1                          beginning        today
+# 2                  z       today – z        today
+# 3     x      y             x                y
+# 4     x                    x                today
+# 5     x            z       x                x + z
+# 6            y             beginning        y
+# 7            y     z       y - z            y
+# 8     x      y     z       x                min(x + z, y)
+#
+# case 1
+if ! has_param first && ! has_param last && ! has_param days; then
+  LAST=9999-12-31
+  FIRST=0001-01-01
+# case 2
+elif ! has_param first && ! has_param last && has_param days; then
+  days=$(get_param days)
+  LAST=$today_iso
+  FIRST=$(TZ=Etc/UTC date --date "$today_iso - $days days" --iso --utc)
+# case 3
+elif has_param first && has_param last && ! has_param days; then
+  LAST=$(get_param last)
+  FIRST=$(get_param first)
+# case 4
+elif has_param first && ! has_param last && ! has_param days; then
+  LAST=9999-12-31
+  FIRST=$(get_param first)
+# case 5
+elif has_param first && ! has_param last && has_param days; then
+  first=$(get_param first)
+  days=$(get_param days)
+  LAST=$(TZ=Etc/UTC date --date "$first + $days days" --iso --utc)
+  FIRST=$first
+# case 6
+elif ! has_param first && has_param last && ! has_param days; then
+  LAST=$(get_param last)
+  FIRST=0001-01-01
+# case 7
+elif ! has_param first && has_param last && has_param days; then
+  last=$(get_param last)
+  days=$(get_param days)
+  LAST=$last
+  FIRST=$(TZ=Etc/UTC date --date "$last - $days days" --iso --utc)
+# case 8
+elif has_param first && has_param last && has_param days; then
+  last=$(get_param last)
+  first=$(get_param first)
+  days=$(get_param days)
+  after=$(TZ=Etc/UTC date --date "$first + $days days" --iso --utc)
+  lesser=$(lesser_string "$after" "$last")
+  LAST=$lesser
+  FIRST=$first
 fi
 
 # Support "today" as a date.
-today=$(date --iso --utc)
 if [ "$FIRST" = 'today' ]; then
-  FIRST="$today"
+  FIRST="$today_iso"
 fi
 if [ "$LAST" = 'today' ]; then
-  LAST="$today"
+  LAST="$today_iso"
 fi
+
+# No funny business.
+FIRST=$(escape_sql "$FIRST")
+LAST=$(escape_sql "$LAST")
+
+export FIRST
+export LAST
 
 read -r url_path <request/path
 
 case "$url_path" in
-/data.svg) exec "$src_dir/plotters/data" ;;
-/today.svg) exec "$src_dir/plotters/today" ;;
-/temperature-histogram.svg) exec "$src_dir/plotters/temperature-histogram" ;;
-/humidity-histogram.svg) exec "$src_dir/plotters/humidity-histogram" ;;
-/co2.svg) exec "$src_dir/plotters/co2" ;;
-*)
-  >response/status printf '404'
+  /data.svg) exec "$src_dir/plotters/data" ;;
+  /temperature-histogram.svg) exec "$src_dir/plotters/temperature-histogram" ;;
+  /humidity-histogram.svg) exec "$src_dir/plotters/humidity-histogram" ;;
+  /co2.svg) exec "$src_dir/plotters/co2" ;;
+  *) >response/status printf '404'
 esac
+
 

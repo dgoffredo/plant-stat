@@ -35,6 +35,11 @@ set y2label 'Relative Humidity (%)'
 
 set title 'Temperature and Relative Humidity versus Time'
 
+# Give the legend a solid background, and make sure that the border of the
+# graph isn't drawn over it.
+set key center top box opaque
+set border back
+
 set terminal svg size 1024,769 fixed enhanced font 'Arial,12' butt dashlength 1.0
 
 plot 'dump.txt' using 1:2 title 'Temperature (°C) [left axis]' axes x1y1, \
