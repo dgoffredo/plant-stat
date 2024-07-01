@@ -39,7 +39,9 @@ set style fill solid 1.0
 
 set title 'Humidity Histogram'
 
-set terminal svg size 1024,769 fixed enhanced font 'Arial,12' butt dashlength 1.0
+set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+
+set tics front
 
 plot 'dump.txt' using 1:2 notitle with boxes
 END_GNUPLOT

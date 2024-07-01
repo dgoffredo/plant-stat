@@ -37,7 +37,9 @@ set title 'CO₂ Concentration versus Time'
 set key center top box opaque
 set border back
 
-set terminal svg size 1024,769 fixed enhanced font 'Arial,12' butt dashlength 1.0
+set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+
+set tics front
 
 plot 'dump.txt' using 1:2 title 'CO₂ Concentration (ppm)'
 END_GNUPLOT
