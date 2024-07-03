@@ -44,3 +44,7 @@ set tics front
 plot 'dump.txt' using 1:2 title 'CO₂ Concentration (ppm)'
 END_GNUPLOT
 
+# Edit the resulting SVG's <title> in place.
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'CO₂ Concentration' response/body
+
+

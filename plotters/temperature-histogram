@@ -40,3 +40,6 @@ set tics front
 plot 'dump.txt' using 1:2 notitle with boxes
 END_GNUPLOT
 
+# Edit the resulting SVG's <title> in place.
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature Histogram' response/body
+

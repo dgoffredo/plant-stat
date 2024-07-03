@@ -48,3 +48,6 @@ plot 'dump.txt' using 1:2 title 'Temperature (°C) [left axis]' axes x1y1, \
      'dump.txt' using 1:3 title 'Relative Humidity (%) [right axis]' axes x1y2
 END_GNUPLOT
 
+# Edit the resulting SVG's <title> in place.
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature and Humidity' response/body
+
