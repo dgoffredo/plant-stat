@@ -120,11 +120,17 @@ case "$url_path" in
   /temperature-histogram.svg|/temperature-histogram) exec "$src_dir/plotters/temperature-histogram" ;;
   /humidity-histogram.svg|/humidity-histogram) exec "$src_dir/plotters/humidity-histogram" ;;
   /co2.svg|/co2) exec "$src_dir/plotters/co2" ;;
+  /co2-latency.svg|/co2-latency) exec "$src_dir/plotters/co2-latency" ;;
   /co2-latency-histogram.svg|/co2-latency-histogram) exec "$src_dir/plotters/co2-latency-histogram" ;;
   /co2-histogram.svg|/co2-histogram) exec "$src_dir/plotters/co2-histogram" ;;
+  /wine-cooler.svg|/wine-cooler) exec "$src_dir/plotters/wine-cooler" ;;
+  /wine-cooler-temperature.svg|/wine-cooler-temperature) exec "$src_dir/plotters/wine-cooler-temperature" ;;
+  /wine-cooler-humidity.svg|/wine-cooler-humidity) exec "$src_dir/plotters/wine-cooler-humidity" ;;
+  /wine-cooler-latency.svg|/wine-cooler-latency) exec "$src_dir/plotters/wine-cooler-latency" ;;
+  /wine-cooler-latency-histogram.svg|/wine-cooler-latency-histogram) exec "$src_dir/plotters/wine-cooler-latency-histogram" ;;
+  /wine-cooler-resets.svg|/wine-cooler-resets) exec "$src_dir/plotters/wine-cooler-resets" ;;
   *)
     >response/status printf '404'
     >response/body printf '404 Not Found\n'
 esac
-
 

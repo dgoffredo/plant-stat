@@ -1,0 +1,69 @@
+#!/bin/sh
+
+# Required environment variables:
+#
+# DATABASE
+#   Path to a sqlite3 database containing the measurement data.
+#
+# FIRST
+#   ISO 8601 date of the first day of data to fetch.
+#
+# LAST
+#   ISO 8601 date of the last day of data to fetch.
+
+/usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
+.headers off
+.mode tabs
+.output dump.txt
+
+select req.when_iso,
+       raw.temperature_celsius,
+       raw.humidity_percent,
+       sensor.name
+from wine_cooler_reading_raw raw
+  inner join wine_cooler_sensor sensor
+    on raw.sensor_id = sensor.id
+  inner join wine_cooler_request req
+    on raw.request_id = req.id
+where req.when_iso between '$FIRST' and '$LAST' or instr(req.when_iso, '$LAST') = 1
+order by req.when_iso;
+END_SQL
+
+awk '$4 == "dht22_top"' dump.txt >top.txt
+awk '$4 == "dht22_middle"' dump.txt >middle.txt
+awk '$4 == "dht22_bottom"' dump.txt >bottom.txt
+
+printf 'image/svg+xml' >response/headers/Content-Type
+
+>response/body gnuplot <<'END_GNUPLOT'
+set xdata time
+set timefmt '%Y-%m-%dT%H:%M:%SZ'
+
+set y2tics
+
+set xlabel 'Time (UTC)' offset 0,-1
+set ylabel 'Temperature (°C)'
+set y2label 'Relative Humidity (%)'
+
+set title 'Wine Cooler Temperature and Relative Humidity versus Time'
+
+# Give the legend a solid background, and make sure that the border of the
+# graph isn't drawn over it.
+set key center top box opaque
+set border back
+
+set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+
+set tics front
+
+plot 'top.txt' using 1:2 title 'Top Sensor Temperature (°C) [left axis]' axes x1y1, \
+     'top.txt' using 1:3 title 'Top Sensor Relative Humidity (%) [right axis]' axes x1y2, \
+     'middle.txt' using 1:2 title 'Middle Sensor Temperature (°C) [left axis]' axes x1y1, \
+     'middle.txt' using 1:3 title 'Middle Sensor Relative Humidity (%) [right axis]' axes x1y2, \
+     'bottom.txt' using 1:2 title 'Bottom Sensor Temperature (°C) [left axis]' axes x1y1, \
+     'bottom.txt' using 1:3 title 'Bottom Sensor Relative Humidity (%) [right axis]' axes x1y2
+END_GNUPLOT
+
+# Edit the resulting SVG's <title> in place.
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Temperature and Humidity' response/body
+

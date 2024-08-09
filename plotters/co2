@@ -13,13 +13,21 @@
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
-.mode columns
+.mode tabs
 .output dump.txt
 select when_iso, co2_ppm
 from co2_raw
-where date(when_iso) between '$FIRST' and '$LAST'
+where when_iso between '$FIRST' and '$LAST' or instr(when_iso, '$LAST') = 1
 order by when_iso;
 END_SQL
+
+# If there are many more than 1000 points, skip some points so there are about
+# 1000 remaining.
+# multiple=$(printf '%s / %s\n' "$(wc -l <dump.txt)" 5000 | bc)
+# if [ "$multiple" -gt 1 ]; then
+#   >dump.txt.tmp awk "(NR - 1) % $multiple == 0" dump.txt
+#   mv dump.txt.tmp dump.txt
+# fi
 
 printf 'image/svg+xml' >response/headers/Content-Type
 

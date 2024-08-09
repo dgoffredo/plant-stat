@@ -13,7 +13,7 @@
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
-.mode columns
+.mode tabs
 .output dump.txt
 
 select tens * 10 as milliseconds, frequency
@@ -22,7 +22,7 @@ from (
   sum(dupe_count + 1) as frequency
   from co2_request_duration
     inner join co2_raw on co2_request_duration.co2_raw_id = co2_raw.id
-  where date(co2_raw.when_iso) between '$FIRST' and '$LAST'
+  where co2_raw.when_iso between '$FIRST' and '$LAST' or instr(co2_raw.when_iso, '$LAST') = 1
   group by tens
   order by tens
   )

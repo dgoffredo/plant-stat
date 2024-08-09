@@ -13,7 +13,7 @@
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
-.mode columns
+.mode tabs
 .output dump.txt
 
 select

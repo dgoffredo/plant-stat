@@ -15,19 +15,22 @@
 .headers off
 .mode tabs
 .output dump.txt
-select when_iso, temperature_celsius, humidity_percent
-from reading
-where when_iso between '$FIRST' and '$LAST' or instr(when_iso, '$LAST') = 1
-order by when_iso;
+
+select req.when_iso,
+       raw.temperature_celsius,
+       sensor.name
+from wine_cooler_reading_raw raw
+  inner join wine_cooler_sensor sensor
+    on raw.sensor_id = sensor.id
+  inner join wine_cooler_request req
+    on raw.request_id = req.id
+where req.when_iso between '$FIRST' and '$LAST' or instr(req.when_iso, '$LAST') = 1
+order by req.when_iso;
 END_SQL
 
-# If there are many more than 1000 points, skip some points so there are about
-# 1000 remaining.
-# multiple=$(printf '%s / %s\n' "$(wc -l <dump.txt)" 5000 | bc)
-# if [ "$multiple" -gt 1 ]; then
-#   >dump.txt.tmp awk "(NR - 1) % $multiple == 0" dump.txt
-#   mv dump.txt.tmp dump.txt
-# fi
+awk '$3 == "dht22_top"' dump.txt >top.txt
+awk '$3 == "dht22_middle"' dump.txt >middle.txt
+awk '$3 == "dht22_bottom"' dump.txt >bottom.txt
 
 printf 'image/svg+xml' >response/headers/Content-Type
 
@@ -35,13 +38,11 @@ printf 'image/svg+xml' >response/headers/Content-Type
 set xdata time
 set timefmt '%Y-%m-%dT%H:%M:%SZ'
 
-set y2tics
 
 set xlabel 'Time (UTC)' offset 0,-1
 set ylabel 'Temperature (°C)'
-set y2label 'Relative Humidity (%)'
 
-set title 'Temperature and Relative Humidity versus Time'
+set title 'Wine Cooler Temperature versus Time'
 
 # Give the legend a solid background, and make sure that the border of the
 # graph isn't drawn over it.
@@ -52,10 +53,11 @@ set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.
 
 set tics front
 
-plot 'dump.txt' using 1:2 title 'Temperature (°C) [left axis]' axes x1y1, \
-     'dump.txt' using 1:3 title 'Relative Humidity (%) [right axis]' axes x1y2
+plot 'top.txt' using 1:2 title 'Top Sensor Temperature (°C)', \
+     'middle.txt' using 1:2 title 'Middle Sensor Temperature (°C)', \
+     'bottom.txt' using 1:2 title 'Bottom Sensor Temperature (°C)'
 END_GNUPLOT
 
 # Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature and Humidity' response/body
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Temperature' response/body
 

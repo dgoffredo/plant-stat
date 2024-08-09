@@ -13,10 +13,11 @@
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
-.mode tabs
+.mode columns
 .output dump.txt
-select when_iso, temperature_celsius, humidity_percent
-from reading
+select when_iso, duration_nanoseconds / 1000000 as duration_milliseconds
+from co2_request_duration inner join co2_raw
+  on co2_request_duration.co2_raw_id = co2_raw.id
 where when_iso between '$FIRST' and '$LAST' or instr(when_iso, '$LAST') = 1
 order by when_iso;
 END_SQL
@@ -35,13 +36,10 @@ printf 'image/svg+xml' >response/headers/Content-Type
 set xdata time
 set timefmt '%Y-%m-%dT%H:%M:%SZ'
 
-set y2tics
-
 set xlabel 'Time (UTC)' offset 0,-1
-set ylabel 'Temperature (°C)'
-set y2label 'Relative Humidity (%)'
+set ylabel 'CO₂ Request Latency (ms)'
 
-set title 'Temperature and Relative Humidity versus Time'
+set title 'CO₂ Request Latency versus Time'
 
 # Give the legend a solid background, and make sure that the border of the
 # graph isn't drawn over it.
@@ -52,10 +50,12 @@ set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.
 
 set tics front
 
-plot 'dump.txt' using 1:2 title 'Temperature (°C) [left axis]' axes x1y1, \
-     'dump.txt' using 1:3 title 'Relative Humidity (%) [right axis]' axes x1y2
+set logscale y
+
+plot 'dump.txt' using 1:2 title 'CO₂ Request Duration (ms)'
 END_GNUPLOT
 
 # Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature and Humidity' response/body
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'CO₂ Request Latency' response/body
+
 

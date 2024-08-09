@@ -16,36 +16,50 @@
 .mode tabs
 .output dump.txt
 
-with frequencies as (
-  select humidity_percent, sum(dupe_count + 1) as frequency
-  from reading
+select tens * 10 as milliseconds, frequency
+from (
+  select duration_nanoseconds / (1000*1000*10) as tens,
+  count(*) as frequency
+  from wine_cooler_request
   where when_iso between '$FIRST' and '$LAST' or instr(when_iso, '$LAST') = 1
-  group by humidity_percent
+  group by tens
+  order by tens
 )
-select round(humidity_percent), sum(frequency)
-from frequencies
-group by round(humidity_percent)
-order by round(humidity_percent);
+order by milliseconds;
 END_SQL
+
+# printf 'text/plain' >response/headers/Content-Type
+# cat - >response/body <<END_BODY
+# FIRST: $FIRST
+# LAST: $LAST
+# dump.txt:
+# END_BODY
+# cat dump.txt >>response/body
+# exit
 
 printf 'image/svg+xml' >response/headers/Content-Type
 
 >response/body gnuplot <<'END_GNUPLOT'
-set xlabel 'Relative Humidity (%)'
+set xlabel 'Wine Cooler Request Latency (ms)'
 set ylabel 'Frequency'
 
 set boxwidth 0.9 relative
 set style fill solid 1.0
 
-set title 'Humidity Histogram'
+set title 'Wine Cooler Request Latency Histogram'
 
 set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
 
+set logscale x
+set logscale y
+
 set tics front
+
+set xrange [1:*]
 
 plot 'dump.txt' using 1:2 notitle with boxes
 END_GNUPLOT
 
 # Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Humidity Histogram' response/body
+xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Latency Histogram' response/body
 

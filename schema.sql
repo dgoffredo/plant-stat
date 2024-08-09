@@ -122,3 +122,9 @@ create table if not exists wine_cooler_reading_raw(
 
   unique (sensor_id, request_id)
 );
+
+create table if not exists note(
+  when_iso text not null,
+  what text not null
+);
+
