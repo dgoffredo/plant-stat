@@ -142,7 +142,7 @@ def read_wine_cooler(db: sqlite3.Connection):
         "select id from wine_cooler_request where rowid = ?;", (rowid, ))
 
     print('response:', data)
-    top, middle, bottom = data['top'], data['middle'], data['bottom']
+    top, middle, bottom, sht30_top, sht30_middle = data['top'], data['middle'], data['bottom'], data['sht30_topper'], data['sht30_top']
 
     def changed(current, previous):
         """`current` is data for one sensor from JSON response.
@@ -157,7 +157,7 @@ def read_wine_cooler(db: sqlite3.Connection):
             or current['failed_checksums'] != num_failed_checksums)
 
     # The sensor IDs are hard-coded into the `wine_cooler_sensor` table.
-    for sensor_id, sensor in (1, top), (2, middle), (3, bottom):
+    for sensor_id, sensor in (1, top), (2, middle), (3, bottom), (4, sht30_top), (5, sht30_middle):
         rows = list(
             execute(
                 db, """select

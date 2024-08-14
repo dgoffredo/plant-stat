@@ -14,6 +14,7 @@
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
 .mode tabs
+.timeout 1000 -- milliseconds
 .output dump.txt
 
 select req.when_iso,
@@ -31,6 +32,8 @@ END_SQL
 awk '$3 == "dht22_top"' dump.txt >top.txt
 awk '$3 == "dht22_middle"' dump.txt >middle.txt
 awk '$3 == "dht22_bottom"' dump.txt >bottom.txt
+awk '$3 == "sht30_top"' dump.txt >top2.txt
+awk '$3 == "sht30_middle"' dump.txt >middle2.txt
 
 printf 'image/svg+xml' >response/headers/Content-Type
 
@@ -54,7 +57,9 @@ set tics front
 
 plot 'top.txt' using 1:2 title 'Top Sensor Relative Humidity (%)', \
      'middle.txt' using 1:2 title 'Middle Sensor Relative Humidity (%)', \
-     'bottom.txt' using 1:2 title 'Bottom Sensor Relative Humidity (%)'
+     'bottom.txt' using 1:2 title 'Bottom Sensor Relative Humidity (%)', \
+     'top2.txt' using 1:2 title 'Top Sensor(2) Relative Humidity (%)', \
+     'middle2.txt' using 1:2 title 'Middle Sensor(3) Relative Humidity (%)', \
 END_GNUPLOT
 
 # Edit the resulting SVG's <title> in place.

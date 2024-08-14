@@ -17,9 +17,9 @@ mkfifo "$workdir/pipe"
 
 # on/off state of power relays ("smart plugs")
 lan_ips_with_port_9999_open | while read -r ip; do
-  "$bin"/tplink_smartplug.py --command info --target "$ip" --quiet | \
+  "$bin"/tplink_smartplug.py --command info --target "$ip" | \
     # -c: "compact" output
-    jq -c '.system.get_sysinfo | {alias: .alias, relay_state: .relay_state}' &
+    jq -c ".system.get_sysinfo | {alias: .alias, relay_state: .relay_state, ip: \"$ip\"}" &
 done >"$workdir/pipe" &
 
 # temperature and humidity

@@ -14,6 +14,7 @@
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
 .mode tabs
+.timeout 1000 -- milliseconds
 .output dump.txt
 select when_iso, temperature_celsius, humidity_percent
 from reading

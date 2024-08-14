@@ -13,7 +13,8 @@
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
-.mode columns
+.mode tabs
+.timeout 1000 -- milliseconds
 .output dump.txt
 select when_iso, duration_nanoseconds / 1000000 as duration_milliseconds
 from co2_request_duration inner join co2_raw

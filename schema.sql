@@ -89,7 +89,12 @@ create table if not exists wine_cooler_sensor(
 );
 
 insert into wine_cooler_sensor(id, name)
-values (1, 'dht22_top'), (2, 'dht22_middle'), (3, 'dht22_bottom')
+values
+  (1, 'dht22_top'),
+  (2, 'dht22_middle'),
+  (3, 'dht22_bottom'),
+  (4, 'sht30_top'),
+  (5, 'sht30_middle')
 on conflict do nothing;
 
 create table if not exists wine_cooler_request(

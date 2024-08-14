@@ -14,6 +14,7 @@
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
 .mode tabs
+.timeout 1000 -- milliseconds
 .output dump.txt
 
 select req.when_iso,
@@ -32,6 +33,8 @@ END_SQL
 awk '$4 == "dht22_top"' dump.txt >top.txt
 awk '$4 == "dht22_middle"' dump.txt >middle.txt
 awk '$4 == "dht22_bottom"' dump.txt >bottom.txt
+awk '$4 == "sht30_top"' dump.txt >top2.txt
+awk '$4 == "sht30_middle"' dump.txt >middle2.txt
 
 printf 'image/svg+xml' >response/headers/Content-Type
 
@@ -56,12 +59,17 @@ set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.
 
 set tics front
 
-plot 'top.txt' using 1:2 title 'Top Sensor Temperature (°C) [left axis]' axes x1y1, \
+plot \
+     'top.txt' using 1:2 title 'Top Sensor Temperature (°C) [left axis]' axes x1y1, \
      'top.txt' using 1:3 title 'Top Sensor Relative Humidity (%) [right axis]' axes x1y2, \
      'middle.txt' using 1:2 title 'Middle Sensor Temperature (°C) [left axis]' axes x1y1, \
      'middle.txt' using 1:3 title 'Middle Sensor Relative Humidity (%) [right axis]' axes x1y2, \
      'bottom.txt' using 1:2 title 'Bottom Sensor Temperature (°C) [left axis]' axes x1y1, \
-     'bottom.txt' using 1:3 title 'Bottom Sensor Relative Humidity (%) [right axis]' axes x1y2
+     'bottom.txt' using 1:3 title 'Bottom Sensor Relative Humidity (%) [right axis]' axes x1y2, \
+     'top2.txt' using 1:2 title 'Top Sensor(2) Temperature (°C) [left axis]' axes x1y1, \
+     'top2.txt' using 1:3 title 'Top Sensor(2) Relative Humidity (%) [right axis]' axes x1y2, \
+     'middle2.txt' using 1:2 title 'Middle Sensor(2) Temperature (°C) [left axis]' axes x1y1, \
+     'middle2.txt' using 1:3 title 'Middle Sensor(2) Relative Humidity (%) [right axis]' axes x1y2
 END_GNUPLOT
 
 # Edit the resulting SVG's <title> in place.

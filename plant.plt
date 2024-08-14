@@ -7,6 +7,11 @@ set xlabel 'Time (UTC)' offset 0,-1
 set ylabel 'Temperature (°C)'
 set y2label 'Relative Humidity (%)'
 
+# Give the legend a solid background, and make sure that the border of the
+# graph isn't drawn over it.
+set key center top box opaque
+set border back
+
 set title 'Temperature and Relative Humidity versus Time'
 
 # set terminal pngcairo nocrop enhanced size 1024,768

@@ -29,9 +29,12 @@ def insert_relay_record(alias: str, reading_id: int, new_state: int):
 if __name__ == '__main__':
     with sqlite3.connect(sensor_db) as db:
         # Python's sqlite3 doesn't have the exponent (exp) function in some
-        # older versions.  Install our own instead.
-        db.create_function('exp', 1, None, deterministic=True)
-        db.create_function('exp', 1, math.exp, deterministic=True)
+        # older versions.  Install our own if so.
+        try:
+            db.execute("select exp(0);")
+        except sqlite3.OperationalError:
+            db.create_function('exp', 1, math.exp, deterministic=True)
+
         rows = list(
             db.execute("""
             select id, humidity_percent
