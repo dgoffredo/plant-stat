@@ -10,6 +10,11 @@
 #
 # LAST
 #   ISO 8601 date of the last day of data to fetch.
+#
+# EXTENSION
+#   The file extension of the requested resource.
+#   This is a lower case string containing the leading dot, e.g. ".png", or is
+#   otherwise empty.
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
@@ -24,9 +29,18 @@ from co2_raw
 group by co2_ppm / 100 order by ppm_bin;
 END_SQL
 
-printf 'image/svg+xml' >response/headers/Content-Type
+if [ "$EXTENSION" = '.png' ]; then
+  printf 'image/png' >response/headers/Content-Type
+  terminal="pngcairo nocrop enhanced size 1024,768 font 'arial,12.0' background rgb 'antiquewhite'"
+else
+  EXTENSION='.svg' # for later reference
+  printf 'image/svg+xml' >response/headers/Content-Type
+  terminal="svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'"
+fi
 
->response/body gnuplot <<'END_GNUPLOT'
+>response/body gnuplot <<END_GNUPLOT
+set encoding utf8
+
 set xlabel 'CO₂ Concentration (ppm)'
 set ylabel 'Frequency'
 
@@ -35,13 +49,15 @@ set style fill solid 1.0
 
 set title 'CO₂ Concentration Histogram'
 
-set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+set terminal $terminal
 
 set tics front
 
 plot 'dump.txt' using 1:2 notitle with boxes
 END_GNUPLOT
 
-# Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'CO₂ Concentration Histogram' response/body
+if [ "$EXTENSION" = '.svg' ]; then
+  # Edit the resulting SVG's <title> in place.
+  xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'CO₂ Concentration Histogram' response/body
+fi
 

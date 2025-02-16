@@ -9,6 +9,7 @@ pic=${2:-data.png}
 .mode columns
 .headers off
 .output dump.txt
+.timeout 10000
 
 select when_iso, temperature_celsius, humidity_percent from reading
 where julianday() - julianday(when_iso) <= $days

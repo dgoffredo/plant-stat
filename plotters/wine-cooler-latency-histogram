@@ -10,6 +10,11 @@
 #
 # LAST
 #   ISO 8601 date of the last day of data to fetch.
+#
+# EXTENSION
+#   The file extension of the requested resource.
+#   This is a lower case string containing the leading dot, e.g. ".png", or is
+#   otherwise empty.
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
@@ -28,18 +33,16 @@ from (
 order by milliseconds;
 END_SQL
 
-# printf 'text/plain' >response/headers/Content-Type
-# cat - >response/body <<END_BODY
-# FIRST: $FIRST
-# LAST: $LAST
-# dump.txt:
-# END_BODY
-# cat dump.txt >>response/body
-# exit
+if [ "$EXTENSION" = '.png' ]; then
+  printf 'image/png' >response/headers/Content-Type
+  terminal="pngcairo nocrop enhanced size 1024,768 font 'arial,12.0' background rgb 'antiquewhite'"
+else
+  EXTENSION='.svg' # for later reference
+  printf 'image/svg+xml' >response/headers/Content-Type
+  terminal="svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'"
+fi
 
-printf 'image/svg+xml' >response/headers/Content-Type
-
->response/body gnuplot <<'END_GNUPLOT'
+>response/body gnuplot <<END_GNUPLOT
 set xlabel 'Wine Cooler Request Latency (ms)'
 set ylabel 'Frequency'
 
@@ -48,7 +51,7 @@ set style fill solid 1.0
 
 set title 'Wine Cooler Request Latency Histogram'
 
-set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+set terminal $terminal
 
 set logscale x
 set logscale y
@@ -60,6 +63,8 @@ set xrange [1:*]
 plot 'dump.txt' using 1:2 notitle with boxes
 END_GNUPLOT
 
-# Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Latency Histogram' response/body
+if [ "$EXTENSION" = '.svg' ]; then
+  # Edit the resulting SVG's <title> in place.
+  xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Latency Histogram' response/body
+fi
 

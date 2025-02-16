@@ -315,7 +315,7 @@ def read_co2(db: sqlite3.Connection):
 
 
 def read(db: sqlite3.Connection):
-    read_temper(db)
+    # read_temper(db)
     read_co2(db)
     read_wine_cooler(db)
 

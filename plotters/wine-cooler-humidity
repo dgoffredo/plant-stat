@@ -10,6 +10,11 @@
 #
 # LAST
 #   ISO 8601 date of the last day of data to fetch.
+#
+# EXTENSION
+#   The file extension of the requested resource.
+#   This is a lower case string containing the leading dot, e.g. ".png", or is
+#   otherwise empty.
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
@@ -35,9 +40,18 @@ awk '$3 == "dht22_bottom"' dump.txt >bottom.txt
 awk '$3 == "sht30_top"' dump.txt >top2.txt
 awk '$3 == "sht30_middle"' dump.txt >middle2.txt
 
-printf 'image/svg+xml' >response/headers/Content-Type
+if [ "$EXTENSION" = '.png' ]; then
+  printf 'image/png' >response/headers/Content-Type
+  terminal="pngcairo nocrop enhanced size 1024,768 font 'arial,12.0' background rgb 'antiquewhite'"
+else
+  EXTENSION='.svg' # for later reference
+  printf 'image/svg+xml' >response/headers/Content-Type
+  terminal="svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'"
+fi
 
->response/body gnuplot <<'END_GNUPLOT'
+>response/body gnuplot <<END_GNUPLOT
+set encoding utf8
+
 set xdata time
 set timefmt '%Y-%m-%dT%H:%M:%SZ'
 
@@ -51,7 +65,7 @@ set title 'Wine Cooler Relative Humidity versus Time'
 set key center top box opaque
 set border back
 
-set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+set terminal $terminal
 
 set tics front
 
@@ -59,9 +73,11 @@ plot 'top.txt' using 1:2 title 'Top Sensor Relative Humidity (%)', \
      'middle.txt' using 1:2 title 'Middle Sensor Relative Humidity (%)', \
      'bottom.txt' using 1:2 title 'Bottom Sensor Relative Humidity (%)', \
      'top2.txt' using 1:2 title 'Top Sensor(2) Relative Humidity (%)', \
-     'middle2.txt' using 1:2 title 'Middle Sensor(3) Relative Humidity (%)', \
+     'middle2.txt' using 1:2 title 'Middle Sensor(3) Relative Humidity (%)'
 END_GNUPLOT
 
-# Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Humidity' response/body
+if [ "$EXTENSION" = '.svg' ]; then
+  # Edit the resulting SVG's <title> in place.
+  xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Wine Cooler Humidity' response/body
+fi
 

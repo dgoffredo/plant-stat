@@ -10,6 +10,11 @@
 #
 # LAST
 #   ISO 8601 date of the last day of data to fetch.
+#
+# EXTENSION
+#   The file extension of the requested resource.
+#   This is a lower case string containing the leading dot, e.g. ".png", or is
+#   otherwise empty.
 
 /usr/local/bin/sqlite3 "$DATABASE" <<END_SQL
 .headers off
@@ -22,17 +27,18 @@ where when_iso between '$FIRST' and '$LAST' or instr(when_iso, '$LAST') = 1
 order by when_iso;
 END_SQL
 
-# If there are many more than 1000 points, skip some points so there are about
-# 1000 remaining.
-# multiple=$(printf '%s / %s\n' "$(wc -l <dump.txt)" 5000 | bc)
-# if [ "$multiple" -gt 1 ]; then
-#   >dump.txt.tmp awk "(NR - 1) % $multiple == 0" dump.txt
-#   mv dump.txt.tmp dump.txt
-# fi
+if [ "$EXTENSION" = '.png' ]; then
+  printf 'image/png' >response/headers/Content-Type
+  terminal="pngcairo nocrop enhanced size 1024,768 font 'arial,12.0' background rgb 'antiquewhite'"
+else
+  EXTENSION='.svg' # for later reference
+  printf 'image/svg+xml' >response/headers/Content-Type
+  terminal="svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'"
+fi
 
-printf 'image/svg+xml' >response/headers/Content-Type
+>response/body gnuplot <<END_GNUPLOT
+set encoding utf8
 
->response/body gnuplot <<'END_GNUPLOT'
 set xdata time
 set timefmt '%Y-%m-%dT%H:%M:%SZ'
 
@@ -49,7 +55,7 @@ set title 'Temperature and Relative Humidity versus Time'
 set key center top box opaque
 set border back
 
-set terminal svg size 1024,768 fixed enhanced font 'Arial,12' butt dashlength 1.0 background rgb 'antiquewhite'
+set terminal $terminal
 
 set tics front
 
@@ -57,6 +63,8 @@ plot 'dump.txt' using 1:2 title 'Temperature (°C) [left axis]' axes x1y1, \
      'dump.txt' using 1:3 title 'Relative Humidity (%) [right axis]' axes x1y2
 END_GNUPLOT
 
-# Edit the resulting SVG's <title> in place.
-xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature and Humidity' response/body
+if [ "$EXTENSION" = '.svg' ]; then
+  # Edit the resulting SVG's <title> in place.
+  xmlstarlet edit --inplace --update "//_:svg/_:title" --value 'Temperature and Humidity' response/body
+fi
 
